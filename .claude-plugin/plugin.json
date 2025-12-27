@@ -1,0 +1,10 @@
+{
+  "name": "security-hooks",
+  "version": "0.1.0",
+  "description": "Pre-commit hook to detect and block secrets, API keys, and hardcoded credentials",
+  "hooks": "../hooks/hooks.json",
+  "readme": "../README.md",
+  "author": {
+    "name": "James Prial"
+  }
+}

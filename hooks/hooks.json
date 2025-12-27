@@ -1,0 +1,10 @@
+{
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/check_secrets.py",
+      "timeout": 30
+    }
+  ]
+}
