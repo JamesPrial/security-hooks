@@ -719,7 +719,8 @@ password = 'secret_password_1234567890'
         self, empty_env_patterns: dict[str, re.Pattern[str]]
     ) -> None:
         """Detect Slack tokens."""
-        content = "slack_token = 'xoxb-' + '1' * 10 + '-' + '2' * 10 + '-' + 'a' * 16"
+        slack_token = "xoxb-" + "1" * 10 + "-" + "2" * 10 + "-" + "a" * 16
+        content = f"slack_token = '{slack_token}'"
 
         pattern_issues, env_issues = check_file_for_secrets(
             "slack.py", content, empty_env_patterns
