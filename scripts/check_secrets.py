@@ -61,6 +61,7 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset({
     '.woff', '.woff2', '.ttf', '.eot', '.ico',
     '.mp3', '.mp4', '.mov', '.tar', '.gz', '.7z',
     '.bin', '.dat', '.db', '.sqlite', '.sqlite3',
+    '.svg', '.lock', '.min.js', '.min.css',
 })
 
 # Environment file patterns to skip
@@ -104,6 +105,16 @@ SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r'mysql://[^:]+:[^@\s]+@'), "MySQL connection string"),
     # Anthropic
     (re.compile(r'sk-ant-[a-zA-Z0-9\-]{20,}'), "Anthropic API key"),
+    # Discord
+    (re.compile(r'[MN][A-Za-z\d]{23,}\.[A-Za-z\d_-]{6}\.[A-Za-z\d_-]{27}'), "Discord bot token"),
+    # npm
+    (re.compile(r'npm_[a-zA-Z0-9]{36}'), "npm access token"),
+    # PyPI
+    (re.compile(r'pypi-[a-zA-Z0-9]{43,}'), "PyPI API token"),
+    # Twilio
+    (re.compile(r'SK[a-fA-F0-9]{32}'), "Twilio API key"),
+    # Mailgun
+    (re.compile(r'key-[a-zA-Z0-9]{32}'), "Mailgun API key"),
 ]
 
 
@@ -234,9 +245,21 @@ def check_file_for_secrets(
 
 
 def is_git_commit_command(command: str) -> bool:
-    """Check if the command is a git commit operation."""
-    cmd_lower = command.lower()
-    return "git" in cmd_lower and "commit" in cmd_lower
+    """Check if the command is a git commit operation.
+
+    Splits command by separators and checks if any subcommand starts with git
+    and contains commit. This avoids false positives like 'echo "git is for commit"'.
+    Matches: git commit, git -C path commit, /usr/bin/git commit, etc.
+    """
+    # Split on command separators and check each subcommand
+    subcommands = re.split(r'[;&|]+', command)
+    for subcmd in subcommands:
+        subcmd = subcmd.strip()
+        # Check if subcommand starts with git (or /path/to/git or C:\path\git.exe)
+        if re.match(r'^(?:\S+[/\\])?git(?:\.exe)?\b', subcmd, re.IGNORECASE):
+            if re.search(r'\bcommit\b', subcmd, re.IGNORECASE):
+                return True
+    return False
 
 
 def main() -> None:
@@ -355,29 +378,42 @@ def _run_secret_check(project_root: Path) -> None:
         all_pattern_issues.extend(pattern_issues)
         all_env_issues.extend(env_issues)
 
-    # If secrets found, block the commit
+    # If secrets found, block the commit with structured JSON output
     if all_pattern_issues or all_env_issues:
-        print("\n" + "=" * 60, file=sys.stderr)
-        print("SECURITY WARNING: Potential secrets detected in staged files!", file=sys.stderr)
-        print("=" * 60 + "\n", file=sys.stderr)
+        # Build detailed reason for Claude
+        reason_parts: list[str] = []
+        reason_parts.append("SECURITY WARNING: Potential secrets detected in staged files!")
+        reason_parts.append("")
 
         if all_pattern_issues:
-            print("  Pattern-based detections:", file=sys.stderr)
+            reason_parts.append("Pattern-based detections:")
             for issue in sorted(all_pattern_issues):
-                print(f"    - {issue}", file=sys.stderr)
-            print("", file=sys.stderr)
+                reason_parts.append(f"  - {issue}")
+            reason_parts.append("")
 
         if all_env_issues:
-            print("  Hardcoded .env values detected:", file=sys.stderr)
+            reason_parts.append("Hardcoded .env values detected:")
             for issue in sorted(all_env_issues):
-                print(f"    - {issue}", file=sys.stderr)
-            print("", file=sys.stderr)
+                reason_parts.append(f"  - {issue}")
+            reason_parts.append("")
 
-        print("Please remove secrets before committing.", file=sys.stderr)
+        reason_parts.append("Please remove secrets before committing.")
         if all_env_issues:
-            print("Use environment variables at runtime instead of hardcoding values.", file=sys.stderr)
-        print("Consider using a secrets manager for sensitive credentials.\n", file=sys.stderr)
-        sys.exit(ExitCode.BLOCKED)
+            reason_parts.append("Use environment variables at runtime instead of hardcoding values.")
+        reason_parts.append("Consider using a secrets manager for sensitive credentials.")
+
+        reason_text = "\n".join(reason_parts)
+
+        # Output structured JSON for better Claude integration
+        output = {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason_text,
+            }
+        }
+        print(json.dumps(output))
+        sys.exit(ExitCode.SUCCESS)  # Use exit 0 with JSON output
 
     sys.exit(ExitCode.SUCCESS)
 

@@ -384,6 +384,12 @@ class TestIsBinaryFile:
             "video.mp4",
             "video.mov",
             "/home/user/images/photo.jpg",
+            # New extensions
+            "icon.svg",
+            "package-lock.lock",
+            "yarn.lock",
+            "bundle.min.js",
+            "styles.min.css",
         ],
     )
     def test_is_binary_file_returns_true(self, file_path: str) -> None:
@@ -436,6 +442,7 @@ class TestIsGitCommitCommand:
             "gIT cOMMIT",
             "/usr/bin/git commit",
             "C:\\git\\git.exe commit",
+            "git -C /path/to/repo commit -m 'msg'",
         ],
     )
     def test_is_git_commit_command_returns_true(self, command: str) -> None:
@@ -453,6 +460,11 @@ class TestIsGitCommitCommand:
             "just commit",
             "",
             "git",
+            # Edge cases that should NOT match (word boundary test)
+            'echo "git is for commit"',
+            "gitcommit",
+            "mygit commit",
+            "git mycommit",
         ],
     )
     def test_is_git_commit_command_returns_false(self, command: str) -> None:
@@ -892,6 +904,87 @@ class TestSecretPatternEdgeCases:
 # =============================================================================
 
 
+class TestNewSecretPatterns:
+    """Tests for newly added secret patterns."""
+
+    def test_discord_bot_token(
+        self, empty_env_patterns: dict[str, re.Pattern[str]]
+    ) -> None:
+        """Detect Discord bot tokens."""
+        # Discord tokens have format: [MN]base64.base64.base64
+        # Using obviously fake test token that matches pattern (no underscores - base64 format)
+        token = "MFakeTestToken0000000000.AAAAAA.BBBBBBBBBBBBBBBBBBBBBBBBBBB"
+        content = f"discord_token = '{token}'"
+
+        pattern_issues, _ = check_file_for_secrets(
+            "bot.py", content, empty_env_patterns
+        )
+
+        assert len(pattern_issues) > 0
+        assert any("Discord" in issue for issue in pattern_issues)
+
+    def test_npm_access_token(
+        self, empty_env_patterns: dict[str, re.Pattern[str]]
+    ) -> None:
+        """Detect npm access tokens."""
+        token = "npm_" + "a" * 36
+        content = f"npm_token = '{token}'"
+
+        pattern_issues, _ = check_file_for_secrets(
+            "publish.js", content, empty_env_patterns
+        )
+
+        assert len(pattern_issues) > 0
+        assert any("npm" in issue for issue in pattern_issues)
+
+    def test_pypi_api_token(
+        self, empty_env_patterns: dict[str, re.Pattern[str]]
+    ) -> None:
+        """Detect PyPI API tokens."""
+        token = "pypi-" + "a" * 50
+        content = f"pypi_token = '{token}'"
+
+        pattern_issues, _ = check_file_for_secrets(
+            "setup.py", content, empty_env_patterns
+        )
+
+        assert len(pattern_issues) > 0
+        assert any("PyPI" in issue for issue in pattern_issues)
+
+    def test_twilio_api_key(
+        self, empty_env_patterns: dict[str, re.Pattern[str]]
+    ) -> None:
+        """Detect Twilio API keys."""
+        token = "SK" + "a" * 32
+        content = f"twilio_key = '{token}'"
+
+        pattern_issues, _ = check_file_for_secrets(
+            "sms.py", content, empty_env_patterns
+        )
+
+        assert len(pattern_issues) > 0
+        assert any("Twilio" in issue for issue in pattern_issues)
+
+    def test_mailgun_api_key(
+        self, empty_env_patterns: dict[str, re.Pattern[str]]
+    ) -> None:
+        """Detect Mailgun API keys."""
+        token = "key-" + "a" * 32
+        content = f"mailgun_key = '{token}'"
+
+        pattern_issues, _ = check_file_for_secrets(
+            "email.py", content, empty_env_patterns
+        )
+
+        assert len(pattern_issues) > 0
+        assert any("Mailgun" in issue for issue in pattern_issues)
+
+
+# =============================================================================
+# TestSecretPatternFalsePositives
+# =============================================================================
+
+
 class TestSecretPatternFalsePositives:
     """Ensure patterns don't match too aggressively."""
 
@@ -1006,8 +1099,8 @@ class TestMain:
 
         assert exc_info.value.code == ExitCode.SUCCESS
 
-    def test_main_git_commit_with_secrets_blocks(self) -> None:
-        """Git commit with secrets in staged files should block."""
+    def test_main_git_commit_with_secrets_blocks(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Git commit with secrets in staged files should block with JSON output."""
         input_data = {
             "tool_name": "Bash",
             "tool_input": {"command": "git commit -m 'test'"},
@@ -1042,7 +1135,16 @@ class TestMain:
                     with pytest.raises(SystemExit) as exc_info:
                         main()
 
-        assert exc_info.value.code == ExitCode.BLOCKED
+        # With JSON output, exit code is 0 (success) but with deny decision
+        assert exc_info.value.code == ExitCode.SUCCESS
+
+        # Verify JSON output structure
+        captured = capsys.readouterr()
+        output = json.loads(captured.out)
+        assert "hookSpecificOutput" in output
+        assert output["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
+        assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "SECURITY WARNING" in output["hookSpecificOutput"]["permissionDecisionReason"]
 
     def test_main_git_commit_clean_files_allows(self) -> None:
         """Git commit with clean staged files should allow through."""
