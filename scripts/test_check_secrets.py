@@ -912,8 +912,8 @@ class TestNewSecretPatterns:
     ) -> None:
         """Detect Discord bot tokens."""
         # Discord tokens have format: [MN]base64.base64.base64
-        # Using obviously fake test token that matches pattern
-        token = "MFAKE_TEST_TOKEN_NOT_REAL_12.AAAAAA.BBBBBBBBBBBBBBBBBBBBBBBBBBB"
+        # Using obviously fake test token that matches pattern (no underscores - base64 format)
+        token = "MFakeTestToken0000000000.AAAAAA.BBBBBBBBBBBBBBBBBBBBBBBBBBB"
         content = f"discord_token = '{token}'"
 
         pattern_issues, _ = check_file_for_secrets(

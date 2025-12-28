@@ -247,10 +247,19 @@ def check_file_for_secrets(
 def is_git_commit_command(command: str) -> bool:
     """Check if the command is a git commit operation.
 
-    Uses word boundaries to avoid false positives like 'echo "git is for commit"'.
+    Splits command by separators and checks if any subcommand starts with git
+    and contains commit. This avoids false positives like 'echo "git is for commit"'.
     Matches: git commit, git -C path commit, /usr/bin/git commit, etc.
     """
-    return bool(re.search(r'\bgit\b.*\bcommit\b', command, re.IGNORECASE))
+    # Split on command separators and check each subcommand
+    subcommands = re.split(r'[;&|]+', command)
+    for subcmd in subcommands:
+        subcmd = subcmd.strip()
+        # Check if subcommand starts with git (or /path/to/git or C:\path\git.exe)
+        if re.match(r'^(?:\S+[/\\])?git(?:\.exe)?\b', subcmd, re.IGNORECASE):
+            if re.search(r'\bcommit\b', subcmd, re.IGNORECASE):
+                return True
+    return False
 
 
 def main() -> None:
