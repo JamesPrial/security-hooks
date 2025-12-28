@@ -307,6 +307,3 @@ python security-hooks/scripts/test_check_secrets.py
 3. **Check stderr** for error messages
 4. **Enable debug mode:** `claude --debug`
 
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
