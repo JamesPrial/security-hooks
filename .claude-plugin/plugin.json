@@ -1,6 +1,6 @@
 {
   "name": "security-hooks",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Security hooks to detect and block potential secrets in git commits",
   "author": "James Prial",
   "hooks": "hooks/hooks.json"
