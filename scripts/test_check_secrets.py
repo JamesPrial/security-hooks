@@ -1135,8 +1135,8 @@ class TestMain:
                     with pytest.raises(SystemExit) as exc_info:
                         main()
 
-        # With JSON output, exit code is 0 (success) but with deny decision
-        assert exc_info.value.code == ExitCode.SUCCESS
+        # Exit code 2 (BLOCKED) ensures Claude respects the deny decision
+        assert exc_info.value.code == ExitCode.BLOCKED
 
         # Verify JSON output structure
         captured = capsys.readouterr()

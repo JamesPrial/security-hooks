@@ -413,7 +413,7 @@ def _run_secret_check(project_root: Path) -> None:
             }
         }
         print(json.dumps(output))
-        sys.exit(ExitCode.SUCCESS)  # Use exit 0 with JSON output
+        sys.exit(ExitCode.BLOCKED)  # Exit 2 ensures Claude sees the deny decision
 
     sys.exit(ExitCode.SUCCESS)
 
