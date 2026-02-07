@@ -3,6 +3,8 @@
   "version": "1.0.1",
   "description": "Security hooks to detect and block potential secrets in git commits",
   "author": {
-    "name": "James Prial"
-  }
+    "name": "James Prial",
+    "email": "prialjames17@gmail.com"
+  },
+  "license": "MIT"
 }
