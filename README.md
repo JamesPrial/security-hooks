@@ -14,12 +14,11 @@ A Claude Code plugin that detects and blocks potential secrets before git commit
 
 # Install the plugin
 /plugin install security-hooks@plugins-by-james
-
-# Build the binary (required after install)
-cd ~/.claude/plugins/security-hooks && make build
 ```
 
-That's it. The hook automatically scans all `git commit` operations for secrets.
+That's it. Pre-built binaries are included for all platforms. The hook automatically scans all `git commit` operations for secrets.
+
+**For development:** Clone the repo and run `make build` to compile locally.
 
 ## Table of Contents
 
@@ -213,7 +212,7 @@ Consider using a secrets manager for sensitive credentials.
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-secrets",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-secrets",
             "timeout": 30
           }
         ]
@@ -318,7 +317,7 @@ cd scripts && go test -v -run Test_CheckFileForSecrets ./...
 2. **Test manually:**
    ```bash
    echo '{"tool_name": "Bash", "tool_input": {"command": "git commit -m test"}}' | \
-     ./scripts/check-secrets
+     ./bin/check-secrets
    ```
 3. **Check stderr** for error messages
 4. **Enable debug mode:** `claude --debug`

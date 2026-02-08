@@ -1,6 +1,6 @@
 {
   "name": "security-hooks",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "Security hooks to detect and block potential secrets in git commits",
   "author": {
     "name": "James Prial",

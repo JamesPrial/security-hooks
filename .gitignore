@@ -1,2 +1,5 @@
-# Compiled Go binary
+# Compiled Go binary (local dev builds)
 scripts/check-secrets
+
+# Release build output
+bin/

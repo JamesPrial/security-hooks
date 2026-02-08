@@ -20,6 +20,9 @@ make test
 # Build and test
 make install
 
+# Print test coverage summary
+make cover
+
 # Clean build artifacts
 make clean
 
@@ -30,7 +33,7 @@ cd scripts && go test -v -race -cover ./...
 cd scripts && go test -v -run TestIsGitCommitCommand ./...
 
 # Manual hook testing (simulates hook input)
-echo '{"tool_name": "Bash", "tool_input": {"command": "git commit -m test"}}' | ./scripts/check-secrets
+echo '{"tool_name": "Bash", "tool_input": {"command": "git commit -m test"}}' | ./bin/check-secrets
 ```
 
 ## Architecture
@@ -103,7 +106,7 @@ envPatterns := CompileEnvPatterns(secretEnvValues) // \b word boundaries
 
 ## Common Issues
 
-- **Binary not found**: Run `make build` to compile the Go binary
+- **Binary not found**: Run `make build` to compile the Go binary to `bin/check-secrets`
 - **Hook not triggering**: Reinstall plugin after code changes (`/plugin uninstall` then `/plugin install`)
 - **False positives**: Check if pattern is too greedy; consider adding to `skipValues` or adjusting regex
 - **Tests need Go**: Requires Go 1.22+ installed (`go version`)

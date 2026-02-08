@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-02-08
+
+### Added
+- CI workflow: multi-OS (Ubuntu, macOS, Windows) and multi-Go-version (1.22, 1.23) test matrix
+- Release workflow: cross-compiles binaries for 5 platforms (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64)
+- Platform-detection wrapper script for automatic OS/architecture dispatch
+- Orphan `releases` branch with pre-built binaries for marketplace distribution
+- GitHub Releases with SHA256 checksums
+- `make cover` target for coverage summary
+
+### Changed
+- Binary output moved from `scripts/check-secrets` to `bin/check-secrets`
+- Makefile now uses `-trimpath -ldflags="-s -w"` for smaller, reproducible binaries
+- Marketplace installs no longer require manual `make build`
+
 ## [1.0.1] - 2026-01-16
 
 ### Fixed

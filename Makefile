@@ -1,16 +1,19 @@
-.PHONY: build test clean install
+BINARY := bin/check-secrets
+GOFLAGS := -trimpath -ldflags="-s -w"
 
-# Build the check-secrets binary for the current platform
+.PHONY: build test cover clean install
+
 build:
-	cd scripts && go build -o check-secrets .
+	cd scripts && go build $(GOFLAGS) -o ../$(BINARY) .
 
-# Run all tests with race detection and coverage
 test:
-	cd scripts && go test -v -race -cover ./...
+	cd scripts && go test -v -race ./...
 
-# Remove build artifacts
+cover:
+	cd scripts && go test -cover ./...
+
 clean:
+	rm -f $(BINARY)
 	rm -f scripts/check-secrets
 
-# Build and verify (build + test)
 install: build test
