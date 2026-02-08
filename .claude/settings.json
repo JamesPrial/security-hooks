@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "golang-workflow@prial-plugins": true,
+    "go-plugin-release@prial-plugins": true
+  }
+}
