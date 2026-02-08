@@ -1,0 +1,17 @@
+{
+  "description": "Security hooks for detecting secrets before git commit",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-secrets",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
