@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -27,7 +28,11 @@ func TestMain(m *testing.M) {
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 
-	testBinary = filepath.Join(dir, "check-secrets")
+	binaryName := "check-secrets"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	testBinary = filepath.Join(dir, binaryName)
 	cmd := exec.Command("go", "build", "-o", testBinary, ".")
 	// go test sets cwd to the package directory, so "." resolves correctly.
 	cmd.Dir = "."
