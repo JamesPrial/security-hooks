@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check_secrets.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-secrets",
             "timeout": 30
           }
         ]

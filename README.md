@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Python](https://img.shields.io/badge/python-3.x-yellow)
+![Go](https://img.shields.io/badge/go-1.22+-00ADD8)
 
 A Claude Code plugin that detects and blocks potential secrets before git commits.
 
@@ -14,6 +14,9 @@ A Claude Code plugin that detects and blocks potential secrets before git commit
 
 # Install the plugin
 /plugin install security-hooks@plugins-by-james
+
+# Build the binary (required after install)
+cd ~/.claude/plugins/security-hooks && make build
 ```
 
 That's it. The hook automatically scans all `git commit` operations for secrets.
@@ -43,16 +46,17 @@ Security hooks are PreToolUse hooks that run before git operations to scan stage
 **Key Features:**
 - Fail-closed design (errors block commits for safety)
 - TOCTOU-safe (reads from git staging area, not disk)
-- Zero external dependencies (Python stdlib only)
-- 24 pre-compiled regex patterns for fast detection
+- Zero external dependencies (Go stdlib only)
+- 26 pre-compiled regex patterns for fast detection
 - Hardcoded .env value detection with word boundaries
+- Compiled binary for instant startup
 
 ## How It Works
 
 ### Detection Methods
 
 #### 1. Pattern-Based Detection
-Scans for 24 common secret patterns using pre-compiled regex.
+Scans for 26 common secret patterns using pre-compiled regex.
 
 #### 2. Hardcoded .env Value Detection
 - Parses `.env` file for environment variable values
@@ -69,12 +73,12 @@ Scans for 24 common secret patterns using pre-compiled regex.
 5. For each staged file:
    - Skip binary files (30+ extensions)
    - Skip .env files
-   - Skip files >10MB
+   - Skip files >10MB or <10 bytes
    - Read content from git staging area
-   - Check against 24 secret patterns
+   - Check against 26 secret patterns
    - Check against hardcoded .env values
-6. If secrets found: block commit with detailed report
-7. On errors: block commit (fail-closed)
+6. If secrets found: block commit with detailed report (exit 2)
+7. On errors: block commit (exit 2, fail-closed)
 ```
 
 ## Secret Patterns Detected
@@ -142,27 +146,29 @@ Scans for 24 common secret patterns using pre-compiled regex.
 
 ## Smart Filtering
 
-### Binary Files Skipped (30+ extensions)
+### Binary Files Skipped (32 extensions)
 
-**Images:** `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.ico`, `.webp`, `.svg`
+**Images:** `.png`, `.jpg`, `.jpeg`, `.gif`, `.ico`, `.svg`
 
-**Documents:** `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`
+**Archives:** `.zip`, `.tar`, `.gz`, `.7z`
 
-**Archives:** `.zip`, `.tar`, `.gz`, `.rar`, `.7z`
+**Executables:** `.exe`, `.dll`, `.so`, `.bin`
 
-**Executables:** `.exe`, `.dll`, `.so`, `.dylib`, `.bin`
+**Compiled:** `.wasm`, `.pyc`, `.class`
 
-**Compiled:** `.wasm`, `.pyc`, `.class`, `.o`, `.obj`
+**Fonts:** `.woff`, `.woff2`, `.ttf`, `.eot`
 
-**Fonts:** `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`
+**Media:** `.mp3`, `.mp4`, `.mov`
 
-**Media:** `.mp3`, `.mp4`, `.avi`, `.mov`, `.wav`, `.flac`
+**Databases:** `.db`, `.sqlite`, `.sqlite3`, `.dat`
 
-**Databases:** `.sqlite`, `.db`
+**Other:** `.pdf`, `.lock`, `.min.js`, `.min.css`
 
 ### Environment Files Skipped
 
 `.env`, `.env.local`, `.env.production`, `.env.development`, `.env.test`, `.env.staging`, `.env.example`
+
+Plus any file matching `.env.*` pattern.
 
 ### False Positive Prevention
 
@@ -181,15 +187,15 @@ Scans for 24 common secret patterns using pre-compiled regex.
 ```
 SECURITY WARNING: Potential secrets detected in staged files!
 
-  Pattern-based detections:
-    - src/api.js:42 - Found potential GitHub Personal Access Token
-    - config/settings.ts:15 - Found potential OpenAI API key
+Pattern-based detections:
+  - src/api.js:42 - Found potential GitHub Personal Access Token
+  - config/settings.ts:15 - Found potential OpenAI API key
 
-  Hardcoded .env values detected:
-    - src/config.py:8 - Found hardcoded value from .env key 'DATABASE_PASSWORD'
+Hardcoded .env values detected:
+  - src/config.py:8 - Found hardcoded value from .env key 'DATABASE_PASSWORD'
 
 Please remove secrets before committing.
-Use environment variables at runtime instead of hardcoding values from .env.
+Use environment variables at runtime instead of hardcoding values.
 Consider using a secrets manager for sensitive credentials.
 ```
 
@@ -198,19 +204,23 @@ Consider using a secrets manager for sensitive credentials.
 **Location:** `hooks/hooks.json`
 
 ```json
-[
-  {
-    "event": "PreToolUse",
-    "matchers": [
+{
+  "description": "Security hooks for detecting secrets before git commit",
+  "hooks": {
+    "PreToolUse": [
       {
         "matcher": "Bash",
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check_secrets.py",
-        "timeout": 30
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-secrets",
+            "timeout": 30
+          }
+        ]
       }
     ]
   }
-]
+}
 ```
 
 ## Exit Codes
@@ -218,7 +228,7 @@ Consider using a secrets manager for sensitive credentials.
 | Code | Meaning | Action |
 |------|---------|--------|
 | 0 | No secrets / Non-commit command | Commit proceeds |
-| 0 + deny JSON | Secrets detected | Commit blocked |
+| 2 | Secrets detected | Commit blocked with deny JSON |
 | 2 | Error (parse, git failure, timeout) | Commit blocked (fail-closed) |
 
 ## Usage Examples
@@ -226,7 +236,7 @@ Consider using a secrets manager for sensitive credentials.
 **Clean commit:**
 ```bash
 git commit -m "Add feature"
-# -> check_secrets.py scans staged files
+# -> check-secrets scans staged files
 # -> No secrets found
 # -> Commit proceeds
 ```
@@ -234,28 +244,34 @@ git commit -m "Add feature"
 **Blocked commit:**
 ```bash
 git commit -m "Add API integration"
-# -> check_secrets.py scans staged files
+# -> check-secrets scans staged files
 # -> Found: sk-abc123... in src/api.py:42
-# -> Commit blocked with detailed report
+# -> Commit blocked with detailed report (exit 2)
 ```
 
 ## Running Tests
 
 ```bash
-# Run with pytest
-python -m pytest security-hooks/scripts/test_check_secrets.py -v
+# Build and test
+make install
 
-# Or run directly
-python security-hooks/scripts/test_check_secrets.py
+# Run tests only
+make test
+
+# Run tests directly with verbose output
+cd scripts && go test -v -race -cover ./...
+
+# Run a specific test
+cd scripts && go test -v -run Test_CheckFileForSecrets ./...
 ```
 
-**Test Coverage:** 70+ tests across 12 test classes covering:
-- .env parsing and filtering
+**Test Coverage:** 87+ tests across 6 test files covering:
+- Pattern compilation and constant verification
+- `.env` parsing and filtering edge cases
 - Binary/env file detection
-- All 24 secret patterns
-- Line number calculation
-- Main function integration
-- Error handling (fail-closed)
+- All 26 secret patterns + false positive prevention
+- Git commit command detection
+- Full integration tests via compiled binary
 
 ## Environment Variables
 
@@ -268,9 +284,8 @@ python security-hooks/scripts/test_check_secrets.py
 
 1. **Remove the hardcoded secret** from the file
 2. **Use environment variables:**
-   ```python
-   import os
-   api_key = os.getenv("API_KEY")
+   ```go
+   apiKey := os.Getenv("API_KEY")
    ```
 3. **Ensure .env is gitignored**
 4. **Use a secrets manager** for production
@@ -295,6 +310,7 @@ python security-hooks/scripts/test_check_secrets.py
 - Context-blind (secrets in comments still flagged)
 - Requires .env file for hardcoded value detection
 - Files >10MB skipped
+- Requires Go 1.22+ to build
 
 ## Debugging
 
@@ -302,8 +318,12 @@ python security-hooks/scripts/test_check_secrets.py
 2. **Test manually:**
    ```bash
    echo '{"tool_name": "Bash", "tool_input": {"command": "git commit -m test"}}' | \
-     ./scripts/check_secrets.py
+     ./scripts/check-secrets
    ```
 3. **Check stderr** for error messages
 4. **Enable debug mode:** `claude --debug`
+5. **Rebuild after changes:** `make build`
 
+## License
+
+MIT
